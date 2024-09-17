@@ -44,7 +44,7 @@ ids = [
     ["b0b721ff-c388-4486-aa0f-c2b0bb321512"],# Sousou no Frieren
     ["d8a959f7-648e-4c8d-8f23-f1f3f8e129f3", "https://readmangabat.com/read-bi357727"]# One-Punch Man
     ["77bee52c-d2d6-44ad-a33a-1734c1fe696a", "https://readmangabat.com/read-ij386428", "119022"],# Kage no Jitsuryokusha ni Naritakute
-    ]
+]
 
 
 mangadex.setTempFolder(r"W:\Temp").downloadMangaCli(ids=ids, downloadPath=r"C:\Manga", updateChapterWithoutCover=True)
