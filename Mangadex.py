@@ -32,6 +32,7 @@ class Mangadex:
         self.downloadPath = self.downloadFolder + "\\mangaDL"
         self.currentFolder = os.path.dirname(os.path.realpath(__file__))
         self.archiveExtensions = (".cbz", ".zip")
+        self.tmpFolder = r"C:\Temp"
         self.languageCodes = {
             "": "unknown",
             "ko-ro": "Korean (Romanized)",
@@ -252,6 +253,9 @@ class Mangadex:
             'raw': '',
         }
     
+    def setTempFolder(self, folder:str):
+        self.tmpFolder = folder
+        return self
     
     def makeDir(self, directory:str):
         if not os.path.exists(directory):
@@ -302,7 +306,7 @@ class Mangadex:
             
     def __writeLog(self, text:str, printOnConsole=True):
         try:
-            with open(f"{self.currentFolder}\\mangadexLogs.txt", "x"): pass
+            with open(f"{self.currentFolder}\\mangadex.log", "x"): pass
         except: pass
         
         try:
@@ -504,103 +508,6 @@ class Mangadex:
 
         return xmlDom.toprettyxml(indent="    ")
 
-    
-    def downloadManga(self, withId="", withManyIds=[], downloadPath="download", language="en", fromChapter=0, updateMissingChapters=True, fromLastChapter=False, threaded=True):
-        """Downloads one or more manga's
-        
-        withId:  Download manga with the given id for example withId="77bee52c-d2d6-44ad-a33a-1734c1fe696a" would download the Kage no Jitsuryokusha ni Naritakute manga.
-        
-        WithManyIds:  Does the same with one or more manga's. receives a List with strings in it.
-        
-        downloadPath:  the path were the manga/manga's is downloaded for example:
-        
-        ```       
-        downloadPath
-            {manga title}
-                Ch.1.cbz
-                Ch.2.cbz
-                Ch.3.cbz
-                ...
-            {manga title}
-                Ch.1.cbz
-                Ch.1.1.cbz
-                ...
-        ```
-        language is the language and uses the ISO 639 language codes like en for English.
-        
-        fromChapter:  starts to download from the given chapter, the given chapter is included. 
-        
-        updateMissingChapters:  gets all chapters that are missing in the folder of the manga. If chapter 45 is the newest but chapter 10 is missing the chapter 10 gets downloaded too
-        
-        fromLastChapter:  scans the folder with the manga title in the downloadPath parameter and downloads all new chapters. When fromLastChapter is True and there are no chapter then the starting point is chapter 1
-        """
-        
-        startTime = time.time()
-        if withId != "":
-            withManyIds.append(withId)
-            
-        if downloadPath == "download":
-            downloadPath = self.downloadPath
-            
-        downloadedMangaCount = 0
-        for id in withManyIds:
-            manga = self.cli.get_manga(id)
-            print(f"Fetched manga {id}")
-            time.sleep(5)
-            mangaTitle = self.sanitizeForWindowsPath([value for key, value in manga.title.items()][0])
-            currentDlPath = f"{downloadPath}\\{mangaTitle}"
-            
-            downloadCompleteManga = True
-            if fromChapter > 0 or fromLastChapter == True or updateMissingChapters == True:
-                downloadCompleteManga = False
-            if not os.path.exists(currentDlPath):
-                os.makedirs(currentDlPath)
-                downloadCompleteManga = True
-                
-            currentDownloadedChapters = []
-            print(f"Fetching chapters for {mangaTitle}")
-            chapters = manga.get_chapters()
-            time.sleep(2)
-            print(f"Found {len(chapters)} chapters")
-            
-            if False:#downloadCompleteManga:
-                try:
-                    MangaDexPy.downloader.dl_manga(manga, currentDlPath, language, threaded=threaded)
-                except Exception as e:
-                    self.__writeLog(f"Error - {e}")
-            else:
-                if fromChapter == 0:
-                    for folder in os.scandir(currentDlPath):
-                        if folder.path.endswith(self.archiveExtensions):
-                            currentDownloadedChapters.append(float(folder.name.split("Ch.")[1].split(".cbz")[0]))
-                    if len(currentDownloadedChapters) > 0:
-                        currentDownloadedChapters.sort()
-                        latestChapter = currentDownloadedChapters[-1]
-                    else:
-                        latestChapter = 0
-                else:
-                    latestChapter = fromChapter - 1
-                    
-                for chapter in chapters:
-                    floatChapter = float(chapter.chapter)
-                    if (chapter.language == language and floatChapter > latestChapter) or (chapter.language == language and floatChapter not in currentDownloadedChapters and updateMissingChapters == True):
-                        newChapterPath = f"{currentDlPath}\\Vol.{chapter.volume or 'None'} Ch.{chapter.chapter}"
-                        self.makeDir(newChapterPath)
-                        try:
-                            if threaded:
-                                pprint(chapter.title)
-                                MangaDexPy.downloader.threaded_dl_chapter(chapter, newChapterPath)
-                            else:
-                                MangaDexPy.downloader.dl_chapter(chapter, newChapterPath, time_controller=0)
-                        except Exception as e:
-                            self.__writeLog(f"Error - {e}")
-            
-            self.addInfoAndCoverToChapter(currentDlPath, manga, chapters, language=language)
-            downloadedMangaCount += 1
-        endTime = time.time()
-        timeTaken = round(endTime - startTime, 4)
-        self.__writeLog(f"Downloaded {downloadedMangaCount} chapter in {timeTaken}")
-
 
     def updateLibrary(self, withIds:list, downloadPath="download", language="en", exe:str|None=None, updateAfter:float=48):
         """"updateAfter: Time between updates in hours"""
@@ -651,7 +558,7 @@ class Mangadex:
             if len(x) > 1 and (type(x) == tuple or type(x) == list):
                 ids.append(list(x))
             elif type(x) == tuple or type(x) == list:
-                ids.append([x[0], x[0]])
+                ids.append([x[0], x[0], None])
             else:
                 ids.append([x, x, None])
         
@@ -694,6 +601,7 @@ class Mangadex:
                 chapterNumber = re.findall("(\d+.\d+|\d+)", existingFiles[-1]) or ["-999"]
                 firstChapter = float(chapterNumber[-1]) + 1 if chapterNumber[-1] != "-999" else 0.0
 
+
             print(f"First Chapter: {firstChapter}")
             print(f"Fetching chapters for {mangaTitle}")
             sleepTime = 10
@@ -703,7 +611,7 @@ class Mangadex:
                     chapters = []
                     x: MangaDexPy.chapter.Chapter
                     for x in manga.get_chapters():
-                        if x.language == language and x.chapter.replace(".", "").isnumeric() and x.chapter not in chapterNumbers:
+                        if x.chapter and x.chapter.replace(".", "").isnumeric() and x.chapter not in chapterNumbers:
                             chapterNumbers.append(x.chapter)
                             chapters.append(x)
                     break
@@ -714,7 +622,7 @@ class Mangadex:
                 
             if len(chapters) == 0:
                 self.__writeLog(f"{mangaTitle} has no chapter in the language {language}")
-                continue
+
             
             time.sleep(5)
             if isMangadex:
@@ -772,10 +680,10 @@ class Mangadex:
             chapterNumber = chapterNumber[-1]
             
             if not forceUpdateAll and (chapterNumber in chaptersWithCoversDict or float(chapterNumber) < startAtChapter) and i != 1:
-                print("skip", chapterNumber)
                 continue
             
-            newFolder = os.path.splitext(x.path)[0]
+            #newFolder = os.path.splitext(x.path)[0]
+            newFolder = f"{self.tmpFolder}\\ch.{chapterNumber}"
             self.makeDir(newFolder)
             print(newFolder)
             unziped = False
@@ -856,7 +764,7 @@ class Mangadex:
                         chapters[float(x.chapter)] = x
                 
                 for x in chaptersTmp:
-                    if x.chapter.replace(".", "").isnumeric() and x.chapter not in chapterNumbers:
+                    if x.chapter and x.chapter.replace(".", "").isnumeric() and x.chapter not in chapterNumbers:
                         chapterNumbers.append(x.chapter)
                         chapters[float(x.chapter)] = x
                 time.sleep(2)
@@ -875,7 +783,7 @@ class Mangadex:
         
         mangaTitle = self.sanitizeForWindowsPath(malManga.title)
         
-        for folder in os.scandir(currentDlPath):
+        for folder in os.scandir(self.tmpFolder):
             if folder.path.endswith(self.archiveExtensions):
                 continue
             
