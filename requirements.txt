@@ -1,3 +1,5 @@
 natsort
 mal-api
 mangadexpy
+requests
+urllib3>=2.2.0
