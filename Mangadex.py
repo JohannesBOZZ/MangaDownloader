@@ -358,7 +358,7 @@ class Mangadex:
 	            "artist": ", ".join([x.name for x in manga.artist]),
 	            "description": summaryText,
 	            "genre": ", ".join([name for entry in manga.tags for lang, name in entry.name.items()]),
-	            "status": status_dict[manga.status.lower()],
+	            "status": status_dict[manga.status.lower() if manga.status else "unknown"],
 	            "_status values": ["0 = Unknown", "1 = Ongoing", "2 = Completed", "3 = Licensed", "4 = Publishing finished", "5 = Cancelled", "6 = On hiatus"]
         }
 
