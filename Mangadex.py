@@ -575,13 +575,19 @@ class Mangadex:
             
         downloadedMangaCount = 0
         for mangaId, downloadUrl, malId in ids:
-            try:
-                manga = self.cli.get_manga(mangaId)
-                search = MangaSearch(next(iter(manga.title.values())))
-                isMangadex = True
-            except MangaDexPy.NoContentError as e:
-                search = MangaSearch(mangaId)
-                isMangadex = False
+            while True:
+                try:
+                    try:
+                        manga = self.cli.get_manga(mangaId)
+                        search = MangaSearch(next(iter(manga.title.values())))
+                        isMangadex = True
+                    except MangaDexPy.NoContentError as e:
+                        search = MangaSearch(mangaId)
+                        isMangadex = False
+                    break
+                except Exception as e:
+                    self.__writeLog(f"Exception: {e}\tWaiting for 10 seconds...")
+                    time.sleep(10)
             
             if malId is None:
                 malId = search.results[0].mal_id
@@ -721,14 +727,22 @@ class Mangadex:
         
         downloadedMangaCount = 0
         for mangaId, downloadUrl, malId in ids:
-            try:
-                manga = self.cli.get_manga(mangaId)
-                search = MangaSearch(next(iter(manga.title.values())))
-                onlyMal = False
-            except MangaDexPy.NoContentError as e:
-                search = MangaSearch(mangaId)
-                manga = None
-                onlyMal = True
+            while True:
+                try:
+                    try:
+                        manga = self.cli.get_manga(mangaId)
+                        search = MangaSearch(next(iter(manga.title.values())))
+                        onlyMal = False
+                        isMangadex = True
+                    except MangaDexPy.NoContentError as e:
+                        search = MangaSearch(mangaId)
+                        manga = None
+                        isMangadex = False
+                        onlyMal = True
+                    break
+                except Exception as e:
+                    self.__writeLog(f"Exception: {e}\tWaiting for 10 seconds...")
+                    time.sleep(10)
             
             malId = malId or search.results[0].mal_id
             malManga = Manga(int(malId))
