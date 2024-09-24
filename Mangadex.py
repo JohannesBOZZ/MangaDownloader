@@ -32,7 +32,7 @@ class Mangadex:
         self.downloadPath = self.downloadFolder + "\\mangaDL"
         self.currentFolder = os.path.dirname(os.path.realpath(__file__))
         self.archiveExtensions = (".cbz", ".zip")
-        self.tmpFolder = r"C:\Temp"
+        self.tmpFolder = r"C:\Temp\mangaDownloader"
         self.languageCodes = {
             "": "unknown",
             "ko-ro": "Korean (Romanized)",
@@ -251,10 +251,11 @@ class Mangadex:
             'nu': 'https://www.novelupdates.com/series/',
             'cdj': 'cdj',
             'raw': '',
+            'engtl': '',
         }
     
     def setTempFolder(self, folder:str):
-        self.tmpFolder = folder
+        self.tmpFolder = os.path.join(folder, "mangaDownloader")
         return self
     
     def makeDir(self, directory:str):
@@ -509,7 +510,7 @@ class Mangadex:
         return xmlDom.toprettyxml(indent="    ")
 
 
-    def updateLibrary(self, withIds:list, downloadPath="download", language="en", exe:str|None=None, updateAfter:float=48):
+    def updateLibrary(self, ids:list, downloadPath="download", language="en", exe:str|None=None, updateAfter:float=48, updateChapterWithoutCover=False):
         """"updateAfter: Time between updates in hours"""
         now = time.time()        
         timestampFile = f"{self.currentFolder}\\mangadexLastUpdate.log"
@@ -518,8 +519,10 @@ class Mangadex:
         lastTimestamp = float(self.getFileContent(timestampFile, "r") or 0)
         
         if (now - lastTimestamp) >= (updateAfter * 3600):
-            self.downloadMangaCli(withIds=withIds, downloadPath=downloadPath, language=language, updateChapterWithoutCover=False)
+            self.downloadMangaCli(ids=ids, downloadPath=downloadPath, language=language, updateChapterWithoutCover=updateChapterWithoutCover)
             self.writeToFile(timestampFile, str(now), "w")
+        
+        return self
 
 
     def downloadMangaCli(self, ids:list[list|str], downloadPath="download", language="en", exe:str|None=None, updateChapterWithoutCover=True, concurrentChapterDownload:Literal[1,2,3,4,5]=1):
@@ -789,15 +792,8 @@ class Mangadex:
             
             if os.path.isdir(folder.path):
                 chapterNumber = re.findall("(chapter|ch|c).*?(\d+.\d+|\d+)", folder.name.lower()) or [("Chapter", "-999")]
-                # if len(chapterNumber) == 0:
-                #     continue
-                # chapterNumber = re.findall("(\d+.\d+|\d+)", chapterNumber) or ["-999"]
                 folderDict[float(chapterNumber[-1][1])] = folder.path
             
-            # if os.path.isdir(folder.path) and "ch." in folder.path.lower():
-            #     folderDict[float(folder.name.lower().split("ch.")[1].strip())] = folder.path
-            # elif  os.path.isdir(folder.path) and "chapter" in folder.path.lower():
-            #     folderDict[float(folder.name.lower().split("chapter")[1].strip())] = folder.path
         
         coverDict = {}
         cover: MangaDexPy.cover.Cover
@@ -809,7 +805,8 @@ class Mangadex:
         
         folderToRemove = []
         chapter: MangaDexPy.chapter.Chapter
-        pprint(folderDict)
+        defaultCover = coverDict["1"] if "1" in coverDict else None
+        
         for currentChapter in folderDict:
             if currentChapter in chapters:
                 # chapter is in Mangadex
@@ -831,7 +828,7 @@ class Mangadex:
                     if chapter.volume is not None:
                         coverUrl:str = coverDict[chapter.volume]
                     else:
-                        coverUrl:str = malManga.image_url
+                        coverUrl:str = defaultCover or malManga.image_url
 
                     res = requests.get(coverUrl)
                     with open(f"{currentFolder}\\0.jpg", "wb") as image:
@@ -855,7 +852,7 @@ class Mangadex:
                 except FileNotFoundError as e:
                     print(str(e))
                     
-                res = requests.get(malManga.image_url)
+                res = requests.get(defaultCover or malManga.image_url)
                 with open(f"{currentFolder}\\0.jpg", "wb") as image:
                     image.write(res.content)
                     chaptersWithCoversDict[str(currentChapter)] = str(currentChapter)
