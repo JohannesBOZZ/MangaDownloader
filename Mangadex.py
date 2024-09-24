@@ -703,18 +703,17 @@ class Mangadex:
         
         tmpIds = ids
         ids = []
-        
         for x in tmpIds:
             if len(x) > 1 and (type(x) == tuple or type(x) == list):
                 ids.append(list(x))
             elif type(x) == tuple or type(x) == list:
-                ids.append([x[0], x[0]])
+                ids.append([x[0], x[0], None])
             else:
                 ids.append([x, x, None])
         
             if len(x) == 2:
                 ids[-1].append(None)
-                
+        
         ids = [tuple(x) for x in ids]
             
         if downloadPath == "download":
